@@ -6,12 +6,13 @@ services:
     ports:
       - "8080:8080"  # Exposes the Go app on host port 8080
     environment:
-      - REDIS_ADDRESS=redis:6379  # Environment variable for Redis connection
+      - REDIS_ADDR=redis:6379  # Environment variable for Redis connection
     depends_on:
       - redis  # Ensures Redis starts first
     volumes:
       - .:/app  # Mounts local code for live-reloading (optional for development)
   redis:
     image: redis:latest  # Official Redis image
+    command: redis-server --notify-keyspace-events KEA
     ports:
       - "6379:6379"

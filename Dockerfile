@@ -4,20 +4,19 @@ FROM golang:1.24.1-alpine
 WORKDIR /app
 
 # Copy go.mod and go.sum files to the workspace
-# Copy go.mod and go.sum files to the workspace if found
-COPY go.mod ./
-
+COPY go.mod go.sum ./
 
 # Download all dependencies
 RUN go mod download
 
+# Install Air for hot reloading during development
 RUN go install github.com/air-verse/air@latest
 
 # Copy the source from the current directory to the workspace
 COPY . .
 
 # Build the Go app
-RUN go build -o ./tmp/main ./cmd/api/main.go
+RUN go build -o ./tmp/main ./cmd/app/main.go
 
 # Expose port 8080 to the outside world
 EXPOSE 8080
