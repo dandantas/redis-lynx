@@ -21,8 +21,8 @@ Redis Lynx is a real-time event propagation service that listens to Redis keyspa
 git clone https://github.com/dandantas/redis-lynx.git
 cd redis-lynx
 
-# Build the application
-go build -o redis-lynx ./cmd/app
+# Build and run the application with air
+docker compose up -d
 ```
 
 ## Usage

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redis Lynx Event Viewer</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        .status {
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .connecting {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .controls {
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        button.clear {
+            background-color: #f44336;
+        }
+        button.reconnect {
+            background-color: #2196F3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            position: sticky;
+            top: 0;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .event-set {
+            background-color: rgba(76, 175, 80, 0.1);
+        }
+        .event-expired {
+            background-color: rgba(255, 152, 0, 0.1);
+        }
+        .event-del {
+            background-color: rgba(244, 67, 54, 0.1);
+        }
+        .timestamp {
+            font-size: 0.85em;
+            color: #666;
+        }
+        .empty-message {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-style: italic;
+        }
+        #events-container {
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Redis Lynx Event Viewer</h1>
+    
+    <div class="status disconnected" id="connection-status">Disconnected</div>
+    
+    <div class="controls">
+        <button id="connect-btn">Connect</button>
+        <button id="disconnect-btn" disabled>Disconnect</button>
+        <button id="reconnect-btn" class="reconnect" disabled>Reconnect</button>
+        <button id="clear-btn" class="clear">Clear Events</button>
+    </div>
+    
+    <div id="events-container">
+        <table id="events-table">
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Key</th>
+                    <th>Value</th>
+                    <th>Size</th>
+                    <th>TTL</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody id="events-body">
+                <tr>
+                    <td colspan="6" class="empty-message">No events yet. Connect to Redis Lynx to start receiving events.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        let socket = null;
+        const eventsBody = document.getElementById('events-body');
+        const statusElement = document.getElementById('connection-status');
+        const connectBtn = document.getElementById('connect-btn');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const reconnectBtn = document.getElementById('reconnect-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        
+        function updateConnectionStatus(status) {
+            statusElement.textContent = status;
+            statusElement.className = `status ${status.toLowerCase()}`;
+            
+            if (status === 'Connected') {
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                reconnectBtn.disabled = false;
+            } else if (status === 'Disconnected') {
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                reconnectBtn.disabled = false;
+            } else if (status === 'Connecting') {
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = true;
+                reconnectBtn.disabled = true;
+            }
+        }
+        
+        function connectWebSocket() {
+            if (socket !== null) {
+                socket.close();
+                socket = null;
+            }
+            
+            updateConnectionStatus('Connecting');
+            
+            socket = new WebSocket('ws://localhost:8080/ws');
+            
+            socket.onopen = () => {
+                updateConnectionStatus('Connected');
+                console.log('Connected to Redis Lynx');
+                
+                // Clear the "No events" message
+                if (eventsBody.querySelector('.empty-message')) {
+                    eventsBody.innerHTML = '';
+                }
+            };
+            
+            socket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                console.log('Redis event:', data);
+                addEventToTable(data);
+            };
+            
+            socket.onclose = () => {
+                updateConnectionStatus('Disconnected');
+                console.log('Disconnected from Redis Lynx');
+            };
+            
+            socket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                updateConnectionStatus('Disconnected');
+            };
+        }
+        
+        function disconnectWebSocket() {
+            if (socket !== null) {
+                socket.close();
+                socket = null;
+            }
+        }
+        
+        function addEventToTable(event) {
+            // If the table shows the "No events" message, clear it
+            if (eventsBody.querySelector('.empty-message')) {
+                eventsBody.innerHTML = '';
+            }
+            
+            const row = document.createElement('tr');
+            row.className = `event-${event.type}`;
+            
+            // Format the TTL to be more readable
+            let formattedTtl = '';
+            if (event.ttl) {
+                const ttlMs = event.ttl / 1000000; // Convert nanoseconds to milliseconds
+                if (ttlMs >= 3600000) {
+                    formattedTtl = `${Math.round(ttlMs / 3600000 * 10) / 10} hours`;
+                } else if (ttlMs >= 60000) {
+                    formattedTtl = `${Math.round(ttlMs / 60000 * 10) / 10} minutes`;
+                } else if (ttlMs >= 1000) {
+                    formattedTtl = `${Math.round(ttlMs / 1000 * 10) / 10} seconds`;
+                } else {
+                    formattedTtl = `${ttlMs} ms`;
+                }
+            }
+            
+            // Format the size to be more readable
+            let formattedSize = '';
+            if (event.size) {
+                if (event.size >= 1048576) {
+                    formattedSize = `${Math.round(event.size / 1048576 * 10) / 10} MB`;
+                } else if (event.size >= 1024) {
+                    formattedSize = `${Math.round(event.size / 1024 * 10) / 10} KB`;
+                } else {
+                    formattedSize = `${event.size} bytes`;
+                }
+            }
+            
+            row.innerHTML = `
+                <td>${event.type}</td>
+                <td>${event.key}</td>
+                <td>${event.value || '-'}</td>
+                <td>${formattedSize || '-'}</td>
+                <td>${formattedTtl || '-'}</td>
+                <td class="timestamp">${event.timestamp}</td>
+            `;
+            
+            eventsBody.insertBefore(row, eventsBody.firstChild);
+        }
+        
+        function clearEvents() {
+            eventsBody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="empty-message">No events yet. Connect to Redis Lynx to start receiving events.</td>
+                </tr>
+            `;
+        }
+        
+        // Event listeners
+        connectBtn.addEventListener('click', connectWebSocket);
+        disconnectBtn.addEventListener('click', disconnectWebSocket);
+        reconnectBtn.addEventListener('click', connectWebSocket);
+        clearBtn.addEventListener('click', clearEvents);
+    </script>
+</body>
+</html> 

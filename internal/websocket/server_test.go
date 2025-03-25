@@ -56,7 +56,7 @@ func TestNewServer(t *testing.T) {
 
 func TestMarshalEvent(t *testing.T) {
 	// Create an event
-	event := events.NewEvent(events.EventTypeSet, "test-key")
+	event := events.NewEvent(events.EventTypeSet, "test-key", "0")
 	event.WithValue("test-value")
 	ttl := 60 * time.Second
 	event.WithTTL(ttl)

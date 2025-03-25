@@ -30,7 +30,7 @@ func Load() (*Config, error) {
 	config := &Config{
 		RedisAddr:     getEnv("REDIS_ADDR", "localhost:6379"),
 		RedisPassword: getEnv("REDIS_PASSWORD", ""),
-		RedisDB:       getEnvAsInt("REDIS_DB", 0),
+		RedisDB:       getEnvAsInt("REDIS_DB", 5),
 		WebSocketPort: getEnvAsInt("WEBSOCKET_PORT", 8080),
 		Debug:         getEnvAsBool("DEBUG", false),
 	}

@@ -98,6 +98,11 @@ func (s *Server) Start() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", s.serveWs)
 
+	// Add a handler for the root path to serve the index.html file
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "index.html")
+	})
+
 	// Create HTTP server
 	s.httpServer = &http.Server{
 		Addr:    fmt.Sprintf(":%d", s.config.WebSocketPort),
