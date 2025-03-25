@@ -1,0 +1,6 @@
+./.ai*
+# Add ./.ai and ./.cursor folders to the gitignore
+./.ai/
+./.cursor/
+
+./.cursor*
